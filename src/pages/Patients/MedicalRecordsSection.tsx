@@ -169,7 +169,6 @@ const MedicalRecordsSection: React.FC<MedicalRecordsSectionProps> = ({
         files: [],
       });
       setShowAddForm(false);
-      // window.location.reload();
     } catch (err: any) {
       console.error("Failed to upload record:", err);
       alert(err.response?.data?.error || "Failed to add medical record.");

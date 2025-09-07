@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { mockData, mockAppointments } from '../../utils/mockData';
 import { format } from 'date-fns';
 import { Appointment } from '../../types/index';
+import { useAppointments } from '../../context/AppointmentsContext';
 
 /**
  * A helper function to find a provider's name by their ID.
@@ -32,23 +33,13 @@ const getUserDetails = (userId: string) => {
 
 const AppointmentsPage = () => {
   const { user } = useAuth();
+  const { appointments, loading } = useAppointments();
 
   // State for the appointments list and loading status
-  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
-  const [showAllAppointments, setShowAllAppointments] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch and filter appointments when the user object is available
-  useEffect(() => {
-    if (user) {
-      const userAppointments = mockAppointments.filter(apt => apt.patient_id === user.id);
-      setAllAppointments(userAppointments);
-      setIsLoading(false);
-    }    
-    else {
-      setIsLoading(true);
-    }
-  }, [user]);
+  const [showAllAppointments, setShowAllAppointments] = useState(false);
+
+
 
   if (!user || user.role !== 'patient') {
     return <div className="min-h-screen flex items-center justify-center">Access Denied. This page is for patients.</div>;
@@ -59,32 +50,26 @@ const AppointmentsPage = () => {
   };
 
   // Filter and sort appointments based on the current view state
-  const filteredAppointments = allAppointments
-    .filter(apt => {
-      // If showAllAppointments is true, return all appointments.
-      // Otherwise, only return appointments that are not in the past.
-      return showAllAppointments ? true : new Date(apt.date) >= new Date();
-    })
-    .sort((a, b) => {
-      // Sort upcoming appointments by date ascending.
-      // Sort all appointments by date descending (most recent first).
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return showAllAppointments ? dateB - dateA : dateA - dateB;
-    });
+  const filteredAppointments = appointments
+  .filter(apt => apt.patient_id === user.id)
+  .filter(apt => (showAllAppointments ? true : new Date(apt.date) >= new Date()))
+  .sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return showAllAppointments ? dateB - dateA : dateA - dateB;
+  });
 
-  // Show a loading message while waiting for user data
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600">Please log in to view appointments.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h2>
+          <p className="text-gray-600">Fetching your appointments.</p>
         </div>
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

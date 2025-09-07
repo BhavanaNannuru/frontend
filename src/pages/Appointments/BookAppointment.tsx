@@ -4,9 +4,11 @@ import { Search, MapPin, Star, User, Calendar, X, CheckCircle, Clock, StarHalf, 
 import { useAuth } from '../../context/AuthContext';
 import { mockData } from '../../utils/mockData';
 import { Provider, TimeSlot } from '../../types';
+import { useAppointments } from '../../context/AppointmentsContext';
 
 const BookAppointment: React.FC = () => {
   const { user } = useAuth();
+  const { addAppointment } = useAppointments();
   const navigate = useNavigate();
 
 
@@ -18,6 +20,7 @@ const BookAppointment: React.FC = () => {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedTimeSlotId, setSelectedTimeSlotId] = useState<string | null>(null);
 
+ 
 
   // State for the booking form
   const [selectedDate, setSelectedDate] = useState('');
@@ -76,14 +79,10 @@ const getProviderDetails = (userId: string): Provider | null => {
   return provider || null;
 };
 
-// 
-// const datetimeString = new Date(selectedTime).toISOString().substr(11, 8);
 
-
-// Handle the appointment booking form submission
 const handleBookAppointment = async (e: React.FormEvent) => {
   e.preventDefault();
-  
+
   if (!selectedDate || !selectedTime) {
     alert("Please select a date and a preferred time slot.");
     return;
@@ -93,18 +92,17 @@ const handleBookAppointment = async (e: React.FormEvent) => {
   const fixedTime = selectedTime.replace(/:00Z$/, 'Z');
   const timeOnly = fixedTime.substr(11, 8);
 
-
   const payload = {
     patient_id: user?.id || "guest",
     provider_id: selectedProviderId ? getProviderDetails(selectedProviderId!)?.id : "unknown_provider",
-    date: selectedDate,                  // yyyy-mm-dd
-    time: timeOnly,                // HH:mm:ss (make sure slot.date is stored in proper SQL TIME format)
-    duration: 30,                        // default 30 minutes
+    date: selectedDate,
+    time: timeOnly,
+    duration: 30,
     status: "pending",
     type: "consultation",
     reason: appointmentReason,
     notes: null,
-    booked_at: new Date().toISOString(), // current timestamp
+    booked_at: new Date().toISOString(),
     confirmed_at: null,
     cancellation_reason: null,
     rejection_reason: null,
@@ -125,26 +123,19 @@ const handleBookAppointment = async (e: React.FormEvent) => {
 
     const data = await response.json();
     console.log("Appointment booked successfully:", data);
+    addAppointment(data); // update global state instantly
 
     setShowBookingModal(false);
     setShowSuccessModal(true);
 
-
+    // mark slot as booked
     await fetch(`http://localhost:5000/api/timeslots/${selectedTimeSlotId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_booked: true })
     });
 
-
-
-    console.log(getUserId(payload.provider_id))
-    console.log("appointment")
-    console.log("New Appointment Booked")
-    console.log(`A new appointment has been booked by patient ${payload.patient_id} on ${payload.date} at ${payload.time}.`)
-    console.log(data.id)
-
-
+    // send notification
     await fetch("http://localhost:5000/api/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -154,27 +145,25 @@ const handleBookAppointment = async (e: React.FormEvent) => {
         title: "New Appointment Booked",
         message: `A new appointment has been booked by patient ${payload.patient_id} on ${payload.date} at ${payload.time}.`,
         is_read: false,
-        related_entity_id: data.id, // link notification to appointment
+        related_entity_id: data.id,
       }),
     });
 
-    console.log("success")
+    console.log("success");
 
-    // 3. Redirect and reload after short delay
+    // Instead of navigate+reload, just auto-close the success modal
+    // after showing it briefly
     setTimeout(() => {
       setShowSuccessModal(false);
-      navigate("/appointments", { state: { newAppointmentId: data.id } });
     }, 2000);
-
-
-
-    window.location.reload()
 
   } catch (error) {
     console.error("Error booking appointment:", error);
     alert("Failed to request appointment. Please try again.");
   }
 };
+
+
 
 
 function getAvailableSlots(
@@ -575,8 +564,8 @@ function getAvailableSlots(
               <div className="flex justify-center mb-4">
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Appointment Booked!</h2>
-              <p className="text-gray-600">You will be redirected to your appointments page.</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Appointment Requested!</h2>
+              <p className="text-gray-600">Wait for the doctor's confirmation!</p>
             </div>
           </div>
         )}

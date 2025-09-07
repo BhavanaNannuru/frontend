@@ -25,6 +25,7 @@ import Contact from './pages/Contact';
 import HelpCenter from './pages/HelpCenter';
 import Documentation from './pages/Documentation';
 import PendingAppointmentsPage from './pages/Appointments/PendingAppointments';
+import { AppointmentsProvider } from './context/AppointmentsContext';
 
 
 function App() {
@@ -61,9 +62,11 @@ function App() {
               path="/appointments"
               element={
                 <ProtectedRoute>
+                  <AppointmentsProvider>
                   <Navbar />
                   <UpcomingAppointments />
                   <Chatbot />
+                  </AppointmentsProvider>
                 </ProtectedRoute>
               }
             />
@@ -71,9 +74,11 @@ function App() {
               path="/book-appointment"
               element={
                 <ProtectedRoute>
+                  <AppointmentsProvider>
                   <Navbar />
                   <BookAppointment />
                   <Chatbot />
+                  </AppointmentsProvider>
                 </ProtectedRoute>
               }
             />
@@ -81,8 +86,10 @@ function App() {
               path="/medical-records"
               element={
                 <ProtectedRoute requireRole="patient">
+                  <AppointmentsProvider>
                   <Navbar />
                   <MedicalRecords />
+                  </AppointmentsProvider>
                 </ProtectedRoute>
               }
             />

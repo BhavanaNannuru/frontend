@@ -87,6 +87,8 @@ const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = ({
     }
   };
 
+
+    
   // const handleFinalAction = () => {
   //   if (actionType === 'confirm') {
   //     onConfirm(appointment.id);
@@ -103,43 +105,52 @@ const AppointmentDetailsModal: React.FC<AppointmentDetailsModalProps> = ({
 
 
   const handleFinalAction = async () => {
-
     try {
       if (actionType === "confirm") {
-        await fetch(`http://localhost:5000/api/appointments/${appointment.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "confirmed",
-          }),
-        });
+        const res = await fetch(
+          `http://localhost:5000/api/appointments/${appointment.id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "confirmed" }),
+          }
+        );
   
-        onConfirm(appointment.id);
-        window.location.reload();
+        if (!res.ok) throw new Error("Failed to confirm appointment");
+        const updatedAppointment = await res.json();
+  
+        // update parent/context
+        onConfirm(updatedAppointment.id);
       } else if (actionType === "reject") {
-        await fetch(`http://localhost:5000/api/appointments/${appointment.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "rejected",
-            rejection_reason: rejectReason,
-          }),
-        });
+        const res = await fetch(
+          `http://localhost:5000/api/appointments/${appointment.id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              status: "rejected",
+              rejection_reason: rejectReason,
+            }),
+          }
+        );
   
-        onReject(appointment.id, rejectReason);
-        window.location.reload();
+        if (!res.ok) throw new Error("Failed to reject appointment");
+        const updatedAppointment = await res.json();
+  
+        // update parent/context
+        onReject(updatedAppointment.id, rejectReason);
       }
     } catch (err) {
       console.error("Error updating appointment:", err);
+    } finally {
+      // Reset modal state and close
+      setShowConfirmation(false);
+      setShowRejectForm(false);
+      setRejectReason("");
+      setActionType(null);
+      onClose();
     }
-  
-    // Reset state after API call
-    setShowConfirmation(false);
-    setShowRejectForm(false);
-    setRejectReason("");
-    setActionType(null);
   };
-
   
 
 

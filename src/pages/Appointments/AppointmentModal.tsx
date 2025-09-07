@@ -17,6 +17,7 @@ interface AppointmentModalProps {
   onClose: () => void;
   onConfirm?: (appointmentId: string) => void;
   onReject?: (appointmentId: string, reason: string) => void;
+  onUpdate?: () => void; 
 }
 
 const getProviderDetails = (providerId: string) => {
@@ -35,6 +36,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
   onClose,
   onConfirm,
   onReject,
+  onUpdate,
 }) => {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -103,7 +105,6 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
           body: JSON.stringify({ status: 'confirmed' }),
         });
         onConfirm?.(appointment.id);
-        window.location.reload();
       } else if (actionType === 'reject') {
         await fetch(`http://localhost:5000/api/appointments/${appointment.id}`, {
           method: 'PUT',
@@ -111,8 +112,12 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
           body: JSON.stringify({ status: 'rejected', rejection_reason: rejectReason }),
         });
         onReject?.(appointment.id, rejectReason);
-        window.location.reload();
       }
+
+      onUpdate?.();
+      onClose();
+
+
     } catch (err) {
       console.error('Error updating appointment:', err);
     }

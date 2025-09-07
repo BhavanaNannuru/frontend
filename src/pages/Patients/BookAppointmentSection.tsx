@@ -65,8 +65,6 @@ const BookAppointmentSection: React.FC<BookAppointmentSectionProps> = ({
           rejection_reason: null,
         };
 
-        console.log(payload);
-        console.log("--------------------------------.......................")
         
   
       const response = await fetch("http://localhost:5000/api/appointments", {
@@ -76,6 +74,8 @@ const BookAppointmentSection: React.FC<BookAppointmentSectionProps> = ({
       });
   
       if (!response.ok) {
+        console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+        console.log(JSON.stringify(payload))
         throw new Error(`Failed to book: ${response.statusText}`);
       }
   
@@ -94,7 +94,7 @@ const BookAppointmentSection: React.FC<BookAppointmentSectionProps> = ({
         reason: '',
       });
   
-      window.location.reload()
+
     } catch (error) {
       console.error("Error booking appointment:", error);
       alert("Failed to request appointment. Please try again.");

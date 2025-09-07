@@ -3,34 +3,30 @@ import { ArrowLeft, Clock, User, Calendar, Phone, AlertCircle, CheckCircle, Filt
 import { mockData } from '../../utils/mockData';
 import { Appointment, Patient } from '../../types';
 import AppointmentDetailsModal from './AppointmentsDetailsModal';
-import { useAuth } from '../../context/AuthContext'; // Import the useAuth hook
+import { useAuth } from '../../context/AuthContext';
 
 const PendingAppointmentsPage: React.FC = () => {
-  const { user: currentUser, isLoading } = useAuth(); // Get the current user from context
+  const { user: currentUser, isLoading } = useAuth();
 
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
+  const [appointments, setAppointments] = useState(mockData.mockAppointments);
 
-  // Handle loading and no-user states
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading appointments...</div>;
   }
 
-  // This page is only for providers, so we can display a message if the user is not a provider.
   if (!currentUser || currentUser.role !== 'provider') {
     return <div className="min-h-screen flex items-center justify-center">Access Denied. This page is for healthcare providers.</div>;
   }
 
-  // The current logged-in provider's ID is now dynamic
   const currentProviderId = currentUser.id;
 
-  // Get patient info for appointment
   const getPatientInfo = (userId: string) => {
     return mockData.mockPatients.find(p => p.user_id === userId);
   };
 
-  
   const getProviderDetails = (providerId: string) => {
     const provider = mockData.mockProviders.find(u => u.id === providerId);
     return provider ? provider : 'Unknown Provider';
@@ -38,27 +34,22 @@ const PendingAppointmentsPage: React.FC = () => {
 
   const getUserDetails = (userId: string) => {
     const user = mockData.mockUsers.find(u => u.id === userId);
-    return user ? user : 'Unknown user';
+    return user ? user : { name: 'Unknown user', phone: '' };
   };
 
-
-  // Get pending appointments for current provider
   const filteredPendingAppointments = useMemo(() => {
-
-    const pending = mockData.mockAppointments
+    const pending = appointments
       .filter(
         apt => getProviderDetails(apt.provider_id)?.user_id === currentProviderId && apt.status === 'pending'
       )
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Apply type filter
     if (selectedTypeFilter !== 'all') {
       return pending.filter(apt => apt.type === selectedTypeFilter);
     }
     return pending;
-  }, [currentProviderId, selectedTypeFilter]);
+  }, [appointments, currentProviderId, selectedTypeFilter]);
 
-  // Color coding for appointment types
   const appointmentTypeColors = {
     consultation: 'bg-blue-50 border-blue-200 text-blue-700',
     'follow-up': 'bg-green-50 border-green-200 text-green-700',
@@ -67,39 +58,35 @@ const PendingAppointmentsPage: React.FC = () => {
     other: 'bg-gray-50 border-gray-200 text-gray-700',
   };
 
-
   const handleAppointmentClick = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setIsModalOpen(true);
   };
 
   const handleConfirm = (appointmentId: string) => {
-    console.log('Confirming appointment:', appointmentId);
+    setAppointments(prev =>
+      prev.map(apt =>
+        apt.id === appointmentId ? { ...apt, status: 'confirmed' } : apt
+      )
+    );
     setIsModalOpen(false);
     setSelectedAppointment(null);
   };
 
   const handleReject = (appointmentId: string, reason: string) => {
-    console.log('Rejecting appointment:', appointmentId, 'Reason:', reason);
+    setAppointments(prev =>
+      prev.map(apt =>
+        apt.id === appointmentId ? { ...apt, status: 'rejected', rejectionReason: reason } : apt
+      )
+    );
     setIsModalOpen(false);
     setSelectedAppointment(null);
   };
 
-  // const formatDate = (date: Date) => {
-  //   return date.toLocaleDateString('en-US', {
-  //     weekday: 'long',
-  //     year: 'numeric',
-  //     month: 'long',
-  //     day: 'numeric',
-  //   });
-  // };
-
-
   const formatDate = (date?: string | Date) => {
-    if (!date) return "N/A"; // fallback
+    if (!date) return "N/A";
     return new Date(date).toLocaleDateString("en-US");
   };
-  
 
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
@@ -110,7 +97,7 @@ const PendingAppointmentsPage: React.FC = () => {
   };
 
   const getTypeCounts = () => {
-    const allPending = mockData.mockAppointments.filter(
+    const allPending = appointments.filter(
       apt => getProviderDetails(apt.provider_id)?.user_id === currentProviderId && apt.status === 'pending'
     );
 
@@ -126,23 +113,12 @@ const PendingAppointmentsPage: React.FC = () => {
 
   const typeCounts = getTypeCounts();
 
-  // const getUrgencyLevel = (type: string, createdAt: Date) => {
-  //   const daysSinceCreated = Math.floor(
-  //     (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
-  //   );
-
-  //   if (type === 'emergency') return { level: 'high', color: 'text-red-600', label: 'Urgent' };
-  //   if (daysSinceCreated >= 3) return { level: 'medium', color: 'text-orange-600', label: 'Overdue' };
-  //   if (daysSinceCreated >= 1) return { level: 'low', color: 'text-yellow-600', label: 'Pending' };
-  //   return { level: 'new', color: 'text-blue-600', label: 'New' };
-  // };
-
   const getUrgencyLevel = (type: string, createdAt: string | Date) => {
-    const dateObj = new Date(createdAt); // handles both string + Date
+    const dateObj = new Date(createdAt);
     const daysSinceCreated = Math.floor(
       (Date.now() - dateObj.getTime()) / (1000 * 60 * 60 * 24)
     );
-  
+
     if (type === "emergency")
       return { level: "high", color: "text-red-600", label: "Urgent" };
     if (daysSinceCreated >= 3)
@@ -152,7 +128,6 @@ const PendingAppointmentsPage: React.FC = () => {
     return { level: "new", color: "text-blue-600", label: "New" };
   };
 
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="max-w-6xl mx-auto p-6">
@@ -161,6 +136,7 @@ const PendingAppointmentsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
+                type="button"
                 onClick={() => window.history.back()}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -197,7 +173,6 @@ const PendingAppointmentsPage: React.FC = () => {
               return (
                 <div key={type} className={`p-4 rounded-xl border-2 ${appointmentTypeColors[type]}`}>
                   <div className="flex items-center space-x-2 mb-2">
-                   
                     <span className="font-medium capitalize">{type.replace('-', ' ')}</span>
                   </div>
                   <p className="text-2xl font-bold">{count}</p>
@@ -218,6 +193,7 @@ const PendingAppointmentsPage: React.FC = () => {
                   No pending appointments match the current filter.
                 </p>
                 <button
+                  type="button"
                   onClick={() => setSelectedTypeFilter('all')}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >

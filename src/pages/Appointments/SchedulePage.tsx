@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Filter, Clock, Plus, Stethoscope, Heart, Activity, AlertCircle, CheckCircle, ConeIcon, Computer } from 'lucide-react';
 import { mockAppointments, mockData } from '../../utils/mockData';
 import { Appointment } from '../../types';
@@ -14,7 +14,7 @@ type AppointmentType = 'consultation' | 'follow-up' | 'check-up' | 'emergency' |
 const SchedulePage: React.FC = () => {
   const { user: currentUser, isLoading } = useAuth(); // Get the user from the context
   const navigate = useNavigate();
-
+  const [refreshAppointments, setRefreshAppointments] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState<ViewType>('daily');
   const [selectedAppointmentType, setSelectedAppointmentType] = useState<AppointmentType>('all');
@@ -137,34 +137,52 @@ const getUserId = (providerId: string) => {
   const provider= mockData.mockProviders.find(u => u.id === providerId);
   return provider ? provider.user_id : 'Unknown UserId';
 };
-  const filteredAppointments = useMemo(() => {
-    let dateRange: Date[] = [];
-    
-    if (viewType === 'daily') {
-      dateRange = [currentDate];
-    } else if (viewType === 'weekly') {
-      dateRange = getWeekDates(currentDate);
-    } else if (viewType === 'monthly') {
-      dateRange = getMonthDates(currentDate);
-    }
+
+const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+const fetchAppointments = async () => {
+  try {
+    const res = await fetch("http://localhost:5000/api/appointments");
+    const data = await res.json();
+    setAppointments(data);
+  } catch (err) {
+    console.error("Error fetching appointments:", err);
+  }
+};
+
+useEffect(() => {
+  fetchAppointments();
+}, [refreshAppointments]);
 
 
-    const userAppointments = mockData.mockAppointments.filter(apt => {
-      //return apt.provider_id === currentUser.id;
-      return getUserId(apt.provider_id )===currentUser.id;
-    });
+const filteredAppointments = useMemo(() => {
+  let dateRange: Date[] = [];
 
-    const appointments = userAppointments.filter(apt => {
-      const appointmentDate = new Date(apt.date);
-      const isDateMatch = dateRange.some(date => 
-        appointmentDate.toDateString() === date.toDateString()
-      );
-      const isTypeMatch = selectedAppointmentType === 'all' || apt.type === selectedAppointmentType;
-      return isDateMatch && isTypeMatch;
-    });
+  if (viewType === "daily") {
+    dateRange = [currentDate];
+  } else if (viewType === "weekly") {
+    dateRange = getWeekDates(currentDate);
+  } else if (viewType === "monthly") {
+    dateRange = getMonthDates(currentDate);
+  }
 
-    return appointments;
-  }, [currentDate, selectedAppointmentType, viewType, currentUser]);
+  const userAppointments = appointments.filter((apt) => {
+    return getUserId(apt.provider_id) === currentUser.id;
+  });
+
+  return userAppointments.filter((apt) => {
+    const appointmentDate = new Date(apt.date);
+
+    const isDateMatch = dateRange.some(
+      (date) => appointmentDate.toDateString() === date.toDateString()
+    );
+
+    const isTypeMatch =
+      selectedAppointmentType === "all" || apt.type === selectedAppointmentType;
+
+    return isDateMatch && isTypeMatch;
+  });
+}, [appointments, currentDate, selectedAppointmentType, viewType, currentUser]);
 
   const timeSlots = generateTimeSlots(currentDate);
 
@@ -233,12 +251,17 @@ const handleSlotClick = (timeString: string, displayTime: string, isBreak: boole
   if (appointment) {
     setSelectedAppointment(appointment);
     setIsAppointmentModalOpen(true);
-  } else {
-    // Redirect to patients page
-    navigate('/patients');
+  }  else {
+    setSelectedSlot({ date: date || currentDate, time: timeString });
+    setIsBookModalOpen(true);
   }
 };
    
+
+const handleAppointmentUpdate = () => {
+  // Toggle the state to force a re-run of the useMemo hook
+  setRefreshAppointments(prev => !prev);
+};
 
   const handleConfirmAppointment = (appointmentId: string) => {
     setIsAppointmentModalOpen(false);
@@ -296,18 +319,23 @@ const handleSlotClick = (timeString: string, displayTime: string, isBreak: boole
 
         return (
           <div
-            key={slot.time}
-            onClick={() => handleSlotClick(slot.time, slot.displayTime, slot.isBreak)}
-            className={`flex items-center p-4 rounded-xl transition-all cursor-pointer border-2 ${
-              slot.isBreak
-                ? 'bg-gray-100 border-gray-200 cursor-not-allowed'
-                : appointment
-                ? `${appointmentTypeColors[appointment.type as keyof typeof appointmentTypeColors]} ${statusStyles[appointment.status as keyof typeof statusStyles]} ${
-                    isFiltered ? 'opacity-30' : ''
-                  } hover:shadow-md`
-                : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-            }`}
-          >
+  key={slot.time}
+  onClick={
+    slot.isBreak || !appointment
+      ? undefined // 🚫 do nothing for breaks & empty slots
+      : () => handleSlotClick(slot.time, slot.displayTime, slot.isBreak)
+  }
+  className={`flex items-center p-4 rounded-xl transition-all border-2 ${
+    slot.isBreak
+      ? 'bg-gray-100 border-gray-200 cursor-not-allowed'
+      : appointment
+      ? `${appointmentTypeColors[appointment.type as keyof typeof appointmentTypeColors]} ${statusStyles[appointment.status as keyof typeof statusStyles]} ${
+          isFiltered ? 'opacity-30' : ''
+        } hover:shadow-md cursor-pointer`
+      : 'border-gray-200 bg-white text-gray-600' // ❌ no hover, no pointer
+  }`}
+>
+
             <div className="flex-shrink-0 w-20">
               <span className={`font-medium ${
                 slot.isBreak ? 'text-gray-500' : appointment ? 'text-current' : 'text-gray-700'
@@ -348,10 +376,9 @@ const handleSlotClick = (timeString: string, displayTime: string, isBreak: boole
               ) : (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <Plus className="w-5 h-5 text-gray-400" />
                     <span className="text-gray-600 font-medium">Available Slot</span>
                   </div>
-                  <span className="text-xs text-gray-500">Click to go to Patients tab</span>
+                  <span className="text-xs text-gray-500">Go to Patients tab</span>
                 </div>
               )}
             </div>
@@ -651,14 +678,17 @@ const handleSlotClick = (timeString: string, displayTime: string, isBreak: boole
         onClose={() => setIsAppointmentModalOpen(false)}
         onConfirm={handleConfirmAppointment}
         onReject={handleRejectAppointment}
+        onUpdate={handleAppointmentUpdate}
       />
 
-      <BookAppointmentModal
-        isOpen={isBookModalOpen}
-        onClose={() => setIsBookModalOpen(false)}
-        selectedDate={selectedSlot?.date}
-        selectedTime={selectedSlot?.time}
-      />
+<BookAppointmentModal
+
+  isOpen={isBookModalOpen}
+  onClose={() => setIsBookModalOpen(false)}
+  selectedDate={selectedSlot?.date}
+  selectedTime={selectedSlot?.time}
+  onUpdate={handleAppointmentUpdate}   // 👈 Add this
+/>
     </div>
   );
 };
