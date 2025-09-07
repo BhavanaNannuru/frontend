@@ -53,14 +53,35 @@ const PatientDashboard = () => {
     );
   }
 
-  // Handle case where no data is available after loading
-  if (!user || !data) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">No user data available. Please log in.</p>
+// Handle case where user is not logged in
+if (!user) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <p className="text-gray-600">Please log in to access your dashboard.</p>
+    </div>
+  );
+}
+
+// Handle case where patient has no data yet (first login)
+if (!data) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Welcome, {user.name}!</h2>
+        <p className="text-gray-600">We don't have any health data for you yet.</p>
+        <p className="text-gray-500 mt-1">Once you book an appointment or upload records, your dashboard will appear here.</p>
+
+        <Link
+          to="/book-appointment"
+          className="mt-6 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Book your first appointment
+        </Link>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
 
   const { appointments, medicalRecords, healthMetrics } = data;
   
