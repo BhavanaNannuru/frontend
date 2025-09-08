@@ -1,4 +1,4 @@
-# frontend# Healthcare Appointment Booking System
+# Healthcare Appointment Booking System
 
 A full-stack, cloud-native appointment booking platform designed for healthcare providers and patients. The system streamlines scheduling, medical record management, and notifications — reducing administrative overhead while improving the patient-doctor experience.
 
